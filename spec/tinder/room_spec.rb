@@ -9,15 +9,6 @@ describe Tinder::Room do
     end
 
     @room = Tinder::Room.new(@connection, 'id' => 80749)
-
-    # Get EventMachine out of the way. We could be using em-spec, but seems like overkill
-    require 'twitter/json_stream'
-    module EventMachine; def self.run; yield end end
-    EventMachine.stub!(:reactor_running?).and_return(true)
-    @stream = mock(Twitter::JSONStream)
-    @stream.stub!(:each_item)
-    @stream.stub!(:on_error)
-    @stream.stub!(:on_max_reconnects)
   end
 
   describe "join" do
@@ -40,11 +31,6 @@ describe Tinder::Room do
     end
 
     it "should post to leave url" do
-      @room.leave
-    end
-
-    it "stops listening" do
-      @room.should_receive(:stop_listening)
       @room.leave
     end
   end
@@ -100,71 +86,6 @@ describe Tinder::Room do
       end
 
       @room.name = "Foo"
-    end
-  end
-
-  describe "listen" do
-    before do
-      stub_connection(@connection) do |stub|
-        stub.post('/room/80749/join.json') {[200, {}, ""]}
-      end
-    end
-
-    it "should get from the streaming url" do
-      Twitter::JSONStream.should_receive(:connect).with(
-        {
-          :host=>"streaming.campfirenow.com",
-          :path=>"/room/80749/live.json",
-          :auth=>"mytoken:X",
-          :timeout=>6,
-          :ssl=>true
-        }
-      ).and_return(@stream)
-
-      @room.listen { }
-    end
-
-    it "should raise an exception if no block is given" do
-      lambda {
-        @room.listen
-      }.should raise_error(ArgumentError, "no block provided")
-    end
-
-    it "marks the room as listening" do
-      Twitter::JSONStream.stub!(:connect).and_return(@stream)
-      lambda {
-        @room.listen { }
-      }.should change(@room, :listening?).from(false).to(true)
-    end
-  end
-
-  describe "stop_listening" do
-    before do
-      stub_connection(@connection) do |stub|
-        stub.post('/room/80749/join.json') {[200, {}, ""]}
-      end
-
-      Twitter::JSONStream.stub!(:connect).and_return(@stream)
-      @stream.stub!(:stop)
-    end
-
-    it "changes a listening room to a non-listening room" do
-      @room.listen { }
-      lambda {
-        @room.stop_listening
-      }.should change(@room, :listening?).from(true).to(false)
-    end
-
-    it "tells the json stream to stop" do
-      @room.listen { }
-      @stream.should_receive(:stop)
-      @room.stop_listening
-    end
-
-    it "does nothing if the room is not listening" do
-      @room.listen { }
-      @room.stop_listening
-      @room.stop_listening
     end
   end
 end

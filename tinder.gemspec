@@ -14,7 +14,6 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency 'mime-types', '~> 1.16'
   gem.add_runtime_dependency 'multi_json', '~> 1.0'
   gem.add_runtime_dependency 'multipart-post', '~> 1.1'
-  gem.add_runtime_dependency 'twitter-stream', '~> 0.1'
 
   gem.authors = ["Brandon Keepers"]
   gem.description = %q{A Ruby API for interfacing with Campfire, the 37Signals chat application.}

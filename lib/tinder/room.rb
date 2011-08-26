@@ -22,7 +22,6 @@ module Tinder
     # POST /room/#{id}/leave.xml
     def leave
       post 'leave', 'xml'
-      stop_listening
     end
 
     # Get the url for guest access
@@ -106,76 +105,6 @@ module Tinder
         user[:created_at] = Time.parse(user[:created_at])
         user
       end
-    end
-
-    # Listen for new messages in the room, yielding them to the provided block as they arrive.
-    # Each message is a hash with:
-    # * +:body+: the body of the message
-    # * +:user+: Campfire user, which is itself a hash, of:
-    #   * +:id+: User id
-    #   * +:name+: User name
-    #   * +:email_address+: Email address
-    #   * +:admin+: Boolean admin flag
-    #   * +:created_at+: User creation timestamp
-    #   * +:type+: User type (e.g. Member)
-    # * +:id+: Campfire message id
-    # * +:type+: Campfire message type
-    # * +:room_id+: Campfire room id
-    # * +:created_at+: Message creation timestamp
-    #
-    #   room.listen do |m|
-    #     room.speak "Go away!" if m[:body] =~ /Java/i
-    #   end
-    def listen(options = {})
-      raise ArgumentError, "no block provided" unless block_given?
-
-      join # you have to be in the room to listen
-
-      require 'active_support/json'
-      require 'hashie'
-      require 'multi_json'
-      require 'twitter/json_stream'
-
-      auth = connection.basic_auth_settings
-      options = {
-        :host => "streaming.#{Connection::HOST}",
-        :path => room_url_for('live'),
-        :auth => "#{auth[:username]}:#{auth[:password]}",
-        :timeout => 6,
-        :ssl => connection.options[:ssl]
-      }.merge(options)
-
-      EventMachine::run do
-        @stream = Twitter::JSONStream.connect(options)
-        @stream.each_item do |message|
-          message = Hashie::Mash.new(MultiJson.decode(message))
-          message[:user] = user(message.delete(:user_id))
-          message[:created_at] = Time.parse(message[:created_at])
-          yield(message)
-        end
-
-        @stream.on_error do |message|
-          raise ListenFailed.new("got an error! #{message.inspect}!")
-        end
-
-        @stream.on_max_reconnects do |timeout, retries|
-          raise ListenFailed.new("Tried #{retries} times to connect. Got disconnected from #{@name}!")
-        end
-
-        # if we really get disconnected
-        raise ListenFailed.new("got disconnected from #{@name}!") if !EventMachine.reactor_running?
-      end
-    end
-
-    def listening?
-      @stream != nil
-    end
-
-    def stop_listening
-      return unless listening?
-
-      @stream.stop
-      @stream = nil
     end
 
     # Get the transcript for the given date (Returns a hash in the same format as #listen)
